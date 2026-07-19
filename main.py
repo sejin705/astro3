@@ -1,11 +1,10 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# 페이지 설정: 와이드 모드로 설정하여 프레젠테이션 느낌을 극대화합니다.
+# 페이지 설정: 와이드 모드
 st.set_page_config(layout="wide", page_title="천문 데이터 시각화 시뮬레이터")
 
 # 전체 HTML/JS 코드를 파이썬 문자열 변수에 담습니다.
-# triple quotes (""")를 사용하여 SyntaxError를 방지합니다.
 html_content = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -19,7 +18,7 @@ html_content = """
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/fitsjs@0.0.5/dist/fits.js"></script>
     <style>
-        /* [1] CORE DESIGN SYSTEM */
+        /* CORE DESIGN SYSTEM */
         :root {
             --bg-color: #020617;
             --accent-cyan: #22d3ee;
@@ -41,12 +40,12 @@ html_content = """
             padding: 40px 0;
         }
 
-        /* [2] SLIDE CONTAINER */
+        /* SLIDE CONTAINER */
         .slide-container {
             width: var(--slide-width);
             height: var(--slide-height);
             background-color: var(--bg-color);
-            background-image: linear-gradient(rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.8)), 
+            background-image: linear-gradient(rgba(2, 6, 23, 0.85), rgba(2, 6, 23, 0.85)), 
                               url('http://googleusercontent.com/image_collection/image_retrieval/7395207678265039631');
             background-size: cover;
             border-radius: 20px;
@@ -57,15 +56,14 @@ html_content = """
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* [3] TYPOGRAPHY */
+        /* TYPOGRAPHY */
         h1 { font-size: 80px; color: var(--text-main); font-weight: 700; line-height: 1.1; margin-bottom: 20px; }
         h1 span { color: var(--accent-cyan); }
         h2.slide-title { font-size: 32px; font-weight: 500; color: var(--accent-cyan); margin-bottom: 40px; text-transform: uppercase; letter-spacing: 2px; }
         p.subtitle { font-size: 20px; color: var(--text-dim); max-width: 800px; margin-bottom: 40px; }
 
-        /* [4] LAYOUTS */
+        /* LAYOUTS */
         .content-area { display: flex; gap: 40px; width: 100%; height: calc(100% - 100px); }
-        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; }
         
         /* Simulation Visuals */
         .visual-card {
@@ -82,7 +80,7 @@ html_content = """
 
         canvas { max-width: 100%; border-radius: 8px; }
 
-        /* [5] INPUTS & UI */
+        /* INPUTS & UI */
         .control-panel {
             display: flex;
             flex-direction: column;
@@ -106,6 +104,8 @@ html_content = """
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th { text-align: left; padding: 12px; color: var(--accent-emerald); border-bottom: 1px solid #334155; }
         td { padding: 12px; color: var(--text-main); border-bottom: 1px solid #1e293b; font-family: monospace; }
+        
+        .status-msg { color: var(--text-dim); font-size: 14px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -121,21 +121,23 @@ html_content = """
 <div class="slide-container" id="slide2">
     <h2 class="slide-title">I. 내행성 위치 및 위상 변화</h2>
     <div class="content-area">
-        <div class="visual-card" style="flex: 2;">
+        <div class="visual-card" style="flex: 1.8;">
             <canvas id="orbitCanvas" width="500" height="400"></canvas>
             <div style="margin-top: 20px; width: 80%;" class="control-panel">
                 <input type="range" id="angleSlider" min="0" max="360" value="45">
                 <div style="display: flex; justify-content: space-between; font-size: 14px;">
-                    <span>내행성 공전 각도</span>
+                    <span>내행성 공전 각도 (태양-지구 선 기준)</span>
                     <span id="angleText" style="color: var(--accent-cyan)">45°</span>
                 </div>
             </div>
         </div>
-        <div class="visual-card" style="flex: 1;">
-            <h3 style="color: var(--text-main); margin-bottom: 15px;">망원경 관측 위상</h3>
-            <canvas id="phaseCanvas" width="200" height="200"></canvas>
-            <div id="statusLabel" style="margin-top: 20px; font-weight: 700; color: var(--accent-emerald);">동방이각 부근</div>
-            <p id="distInfo" style="font-size: 14px; color: var(--text-dim); margin-top: 5px;">시직경: 상대적 크기 1.2x</p>
+        <div class="visual-card" style="flex: 1.2;">
+            <h3 style="color: var(--text-main); margin-bottom: 15px;">망원경 관측 위상 (실제 배율 확대)</h3>
+            <div style="background: #020617; border: 1px solid #1e293b; padding: 20px; border-radius: 12px; display: flex; justify-content: center; align-items: center; width: 100%;">
+                <canvas id="phaseCanvas" width="260" height="260"></canvas>
+            </div>
+            <div id="statusLabel" style="margin-top: 20px; font-size: 18px; font-weight: 700; color: var(--accent-cyan);">동방이각 부근</div>
+            <p id="distInfo" style="font-size: 14px; color: var(--text-dim); margin-top: 5px;">시직경 배율: 1.20x</p>
         </div>
     </div>
 </div>
@@ -148,6 +150,7 @@ html_content = """
                 <i class="fa-solid fa-cloud-arrow-up" style="font-size: 40px; color: var(--accent-cyan); margin-bottom: 15px;"></i>
                 <p style="color: var(--text-main); margin-bottom: 15px;">FITS 파일을 업로드하세요</p>
                 <input type="file" id="fitsInput" accept=".fits,.fit" class="btn-upload">
+                <div id="uploadStatus" class="status-msg">대기 중...</div>
             </div>
             <table>
                 <tr><th>항목</th><th>분석 결과</th></tr>
@@ -155,72 +158,18 @@ html_content = """
                 <tr><td>노출 시간</td><td id="metaExp">-</td></tr>
                 <tr><td>평균 밝기</td><td id="metaBright">-</td></tr>
             </table>
-            <button onclick="generateSample()" style="margin-top: 20px; background: transparent; border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 10px; border-radius: 8px; cursor: pointer;">샘플 데이터 생성</button>
+            <button onclick="generateSample()" style="margin-top: 20px; background: transparent; border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 10px; border-radius: 8px; cursor: pointer;">테스트용 샘플 데이터 생성</button>
         </div>
-        <div class="visual-card" style="flex: 1.5; background: #000;">
-            <canvas id="fitsCanvas" style="max-height: 450px;"></canvas>
-            <p style="color: var(--text-dim); font-size: 12px; margin-top: 10px;">CCD RAW 시각화 엔진 v2.0</p>
-        </div>
-    </div>
-</div>
-
-<div class="slide-container" id="slide4">
-    <h2 class="slide-title">Appendix. 물리량 산출 공식</h2>
-    <div class="content-area">
-        <div class="two-column">
-            <div class="visual-card">
-                <h3 style="color: var(--accent-cyan); margin-bottom: 20px;">회합 주기 공식</h3>
-                <div id="formula-container" style="font-size: 24px; color: #fff;">
-                    <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
-                      <mfrac>
-                        <mn>1</mn>
-                        <mi>S</mi>
-                      </mfrac>
-                      <mo>=</mo>
-                      <mfrac>
-                        <mn>1</mn>
-                        <mi>P</mi>
-                      </mfrac>
-                      <mo>&#x2212;</mo>
-                      <mfrac>
-                        <mn>1</mn>
-                        <mi>E</mi>
-                      </mfrac>
-                    </math>
-                </div>
-                <p style="color: var(--text-dim); font-size: 14px; margin-top: 20px;">
-                    S: 회합 주기, P: 행성의 공전 주기, E: 지구의 공전 주기
-                </p>
-            </div>
-            <div class="visual-card">
-                <h3 style="color: var(--accent-cyan); margin-bottom: 20px;">시직경 및 밝기 분석</h3>
-                <div id="formula-container" style="font-size: 24px; color: #fff;">
-                    <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
-                      <mi>&#x03B4;</mi>
-                      <mo>=</mo>
-                      <mn>2</mn>
-                      <mi>arctan</mi>
-                      <mfenced>
-                        <mfrac>
-                          <mi>d</mi>
-                          <mrow>
-                            <mn>2</mn>
-                            <mi>D</mi>
-                          </mrow>
-                        </mfrac>
-                      </mfenced>
-                    </math>
-                </div>
-                <p style="color: var(--text-dim); font-size: 14px; margin-top: 20px;">
-                    D: 행성까지의 거리, d: 행성의 실제 지름
-                </p>
-            </div>
+        <div class="visual-card" style="flex: 1.5; background: #000; position: relative;">
+            <canvas id="fitsCanvas" style="max-width: 100%; max-height: 440px; display: none;"></canvas>
+            <div id="canvasPlaceholder" style="color: var(--text-dim); font-size: 14px;">파일이 업로드되면 천체 이미지가 렌더링됩니다.</div>
+            <p style="color: var(--text-dim); font-size: 12px; margin-top: 10px; position: absolute; bottom: 10px;">CCD RAW Log-Stretch 시각화 엔진 v3.0</p>
         </div>
     </div>
 </div>
 
 <script>
-    /* [1] PLANETARY SIMULATION LOGIC */
+    /* PLANETARY SIMULATION LOGIC */
     const orbitCanvas = document.getElementById('orbitCanvas');
     const oCtx = orbitCanvas.getContext('2d');
     const phaseCanvas = document.getElementById('phaseCanvas');
@@ -228,127 +177,223 @@ html_content = """
     const slider = document.getElementById('angleSlider');
 
     function drawSim() {
-        const angle = slider.value;
+        const angle = parseInt(slider.value);
         document.getElementById('angleText').innerText = angle + "°";
         
-        // Orbit Canvas
         oCtx.clearRect(0,0,500,400);
         const cx = 250, cy = 200;
         
-        // Orbits
-        oCtx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
-        oCtx.beginPath(); oCtx.arc(cx, cy, 80, 0, Math.PI*2); oCtx.stroke();
-        oCtx.beginPath(); oCtx.arc(cx, cy, 140, 0, Math.PI*2); oCtx.stroke();
+        oCtx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+        oCtx.beginPath(); oCtx.arc(cx, cy, 90, 0, Math.PI*2); oCtx.stroke();
+        oCtx.beginPath(); oCtx.arc(cx, cy, 150, 0, Math.PI*2); oCtx.stroke();
         
-        // Sun
         oCtx.fillStyle = '#f59e0b';
-        oCtx.shadowBlur = 20; oCtx.shadowColor = '#f59e0b';
-        oCtx.beginPath(); oCtx.arc(cx, cy, 15, 0, Math.PI*2); oCtx.fill();
+        oCtx.shadowBlur = 25; oCtx.shadowColor = '#f59e0b';
+        oCtx.beginPath(); oCtx.arc(cx, cy, 18, 0, Math.PI*2); oCtx.fill();
         oCtx.shadowBlur = 0;
         
-        // Earth (Fixed at 6 o'clock for simplicity)
-        const ex = cx, ey = cy + 140;
+        const ex = cx, ey = cy + 150;
         oCtx.fillStyle = '#3b82f6';
-        oCtx.beginPath(); oCtx.arc(ex, ey, 8, 0, Math.PI*2); oCtx.fill();
+        oCtx.beginPath(); oCtx.arc(ex, ey, 9, 0, Math.PI*2); oCtx.fill();
         
-        // Planet
-        const rad = (angle - 90) * Math.PI / 180;
-        const px = cx + 80 * Math.cos(rad);
-        const py = cy + 80 * Math.sin(rad);
+        const rad = (angle + 90) * Math.PI / 180;
+        const px = cx + 90 * Math.cos(rad);
+        const py = cy + 90 * Math.sin(rad);
+        
         oCtx.fillStyle = '#e2e8f0';
-        oCtx.beginPath(); oCtx.arc(px, py, 6, 0, Math.PI*2); oCtx.fill();
+        oCtx.beginPath(); oCtx.arc(px, py, 7, 0, Math.PI*2); oCtx.fill();
 
-        // Guide line
-        oCtx.setLineDash([5, 5]);
-        oCtx.strokeStyle = 'rgba(34, 211, 238, 0.5)';
+        oCtx.setLineDash([4, 4]);
+        oCtx.strokeStyle = 'rgba(34, 211, 238, 0.4)';
         oCtx.beginPath(); oCtx.moveTo(ex, ey); oCtx.lineTo(px, py); oCtx.stroke();
         oCtx.setLineDash([]);
 
-        // Phase Calc
+        oCtx.fillStyle = '#94a3b8';
+        oCtx.font = '12px sans-serif';
+        oCtx.fillText('태양', cx - 11, cy - 25);
+        oCtx.fillText('지구', ex - 11, ey + 25);
+
         const normAngle = angle % 360;
-        updatePhase(normAngle, Math.sqrt((ex-px)**2 + (ey-py)**2));
+        const dist = Math.sqrt((ex-px)**2 + (ey-py)**2);
+        
+        const maxDist = 150 + 90;
+        const scale = (maxDist / dist) * 0.9;
+
+        updatePhaseView(normAngle, scale);
     }
 
-    function updatePhase(angle, dist) {
-        const cx = 100, cy = 100;
-        const baseR = 25;
-        const scale = 220 / dist; // Simple scale
-        const r = baseR * scale;
+    function updatePhaseView(angle, scale) {
+        const cx = 130, cy = 130;
+        const baseRadius = 45; 
+        const r = baseRadius * scale;
         
-        pCtx.clearRect(0,0,200,200);
+        pCtx.clearRect(0,0,260,260);
+        pCtx.fillStyle = '#020617';
+        pCtx.fillRect(0,0,260,260);
+        
         pCtx.fillStyle = '#1e293b';
         pCtx.beginPath(); pCtx.arc(cx, cy, r, 0, Math.PI*2); pCtx.fill();
         
-        // Light part
         pCtx.fillStyle = '#f8fafc';
         pCtx.save();
         pCtx.beginPath();
-        if(angle < 180) { // Eastern
-            pCtx.arc(cx, cy, r, -Math.PI/2, Math.PI/2);
-            document.getElementById('statusLabel').innerText = "동방이각 부근 (상현/그믐)";
-        } else { // Western
-            pCtx.arc(cx, cy, r, Math.PI/2, -Math.PI/2);
-            document.getElementById('statusLabel').innerText = "서방이각 부근 (하현/초승)";
+        
+        if(angle > 0 && angle < 180) {
+            pCtx.arc(cx, cy, r, -Math.PI/2, Math.PI/2, false);
+        } else if (angle > 180 && angle < 360) {
+            pCtx.arc(cx, cy, r, Math.PI/2, -Math.PI/2, false);
+        } else if (angle === 180 || angle === 0) {
+            if (angle === 180) pCtx.arc(cx, cy, r, 0, Math.PI*2);
         }
-        const midW = r * Math.cos(angle * Math.PI / 180);
-        pCtx.ellipse(cx, cy, Math.abs(midW), r, 0, Math.PI/2, -Math.PI/2, (angle > 90 && angle < 270));
+        
+        const midWidth = r * Math.cos(angle * Math.PI / 180);
+        pCtx.ellipse(cx, cy, Math.abs(midWidth), r, 0, Math.PI/2, -Math.PI/2, (angle > 90 && angle < 270));
         pCtx.fill();
         pCtx.restore();
         
+        let statusText = "";
+        if (angle === 0 || angle === 360) statusText = "내합 (삭, 관측 불가)";
+        else if (angle > 0 && angle < 90) statusText = "동방이각 초입 (그믐달 모양, 저녁)";
+        else if (angle === 90) statusText = "동방최대이각 (상현달 모양, 저녁)";
+        else if (angle > 90 && angle < 180) statusText = "동방이각 말기 (볼록한 달, 저녁)";
+        else if (angle === 180) statusText = "외합 (망/보름달, 관측 불가)";
+        else if (angle > 180 && angle < 270) statusText = "서방이각 초입 (볼록한 달, 새벽)";
+        else if (angle === 270) statusText = "서방최대이각 (하현달 모양, 새벽)";
+        else if (angle > 270 && angle < 360) statusText = "서방이각 말기 (초승달 모양, 새벽)";
+
+        document.getElementById('statusLabel').innerText = statusText;
         document.getElementById('distInfo').innerText = "시직경 상대 배율: " + scale.toFixed(2) + "x";
     }
 
     slider.oninput = drawSim;
     drawSim();
 
-    /* [2] FITS ANALYZER LOGIC */
+
+    /* FITS ANALYZER LOGIC (개선된 파일 처리 시스템) */
     const fitsInput = document.getElementById('fitsInput');
     const fCanvas = document.getElementById('fitsCanvas');
     const fCtx = fCanvas.getContext('2d');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const placeholder = document.getElementById('canvasPlaceholder');
 
     fitsInput.onchange = function(e) {
         const file = e.target.files[0];
+        if (!file) return;
+
+        uploadStatus.innerText = "파일 로드 중...";
         const reader = new FileReader();
+        
         reader.onload = function() {
-            const fits = new astro.FITS(this.result);
-            const header = fits.getHDU().header;
-            const dataUnit = fits.getHDU().data;
-            
-            document.getElementById('metaSize').innerText = header.get('NAXIS1') + " x " + header.get('NAXIS2');
-            document.getElementById('metaExp').innerText = (header.get('EXPTIME') || 0) + " s";
-            
-            dataUnit.getFrame(0, (pixels) => {
-                renderFits(pixels, header.get('NAXIS1'), header.get('NAXIS2'));
-            });
+            try {
+                uploadStatus.innerText = "FITS 데이터 파싱 중...";
+                const fits = new astro.FITS(this.result);
+                const hdu = fits.getHDU();
+                
+                if(!hdu) {
+                    throw new Error("유효한 HDU 구조를 찾을 수 없습니다.");
+                }
+
+                const header = hdu.header;
+                const dataUnit = hdu.data;
+                
+                const w = header.get('NAXIS1');
+                const h = header.get('NAXIS2');
+                const exptime = header.get('EXPTIME') || 0;
+                
+                if(!w || !h) {
+                    throw new Error("이미지 차원(NAXIS) 정보가 누락되었습니다.");
+                }
+
+                document.getElementById('metaSize').innerText = w + " x " + h;
+                document.getElementById('metaExp').innerText = exptime.toFixed(1) + " s";
+                
+                uploadStatus.innerText = "이미지 픽셀 렌더링 중...";
+                
+                dataUnit.getFrame(0, (pixels) => {
+                    if (!pixels) {
+                        uploadStatus.innerText = "픽셀 데이터를 읽지 못했습니다.";
+                        return;
+                    }
+                    renderFitsLogarithmic(pixels, w, h);
+                    uploadStatus.innerText = "분석 완료";
+                    placeholder.style.display = "none";
+                    fCanvas.style.display = "block";
+                });
+
+            } catch (err) {
+                uploadStatus.innerText = "오류 발생";
+                alert("FITS 해석 실패: " + err.message + "\\n압축되지 않은 표준 FITS 파일인지 확인하세요.");
+                console.error(err);
+            }
         };
+        
+        reader.onerror = function() {
+            uploadStatus.innerText = "파일 읽기 실패";
+        };
+        
         reader.readAsArrayBuffer(file);
     };
 
-    function renderFits(pixels, w, h) {
-        fCanvas.width = w; fCanvas.height = h;
+    // 로그 가속(Logarithmic Stretch) 연산을 사용한 정밀 천체 렌더링 엔진
+    function renderFitsLogarithmic(pixels, w, h) {
+        fCanvas.width = w; 
+        fCanvas.height = h;
         const imgData = fCtx.createImageData(w, h);
-        let max = 0, sum = 0;
-        for(let p of pixels) { if(p > max) max = p; sum += p; }
+        
+        let min = Infinity;
+        let max = -Infinity;
+        let sum = 0;
+        
+        for(let i=0; i<pixels.length; i++) {
+            const p = pixels[i];
+            if (p < min) min = p;
+            if (p > max) max = p;
+            sum += p;
+        }
+        
         document.getElementById('metaBright').innerText = Math.round(sum/pixels.length) + " ADU";
 
+        // 데이터 편차가 큰 천문 이미지를 선명하게 보여주는 Log 변환
+        // 공식: Pixel_Out = ln(Pixel_In - min + 1) / ln(max - min + 1) * 255
+        const logMax = Math.log(max - min + 1);
+
         for(let i=0; i<pixels.length; i++) {
-            const v = (pixels[i] / max) * 255;
-            imgData.data[i*4] = imgData.data[i*4+1] = imgData.data[i*4+2] = v;
-            imgData.data[i*4+3] = 255;
+            const rawValue = pixels[i];
+            let intensity = 0;
+            
+            if (max - min > 0) {
+                intensity = Math.log(rawValue - min + 1) / logMax * 255;
+            }
+            
+            // 0 ~ 255 사이 제한 방어코드
+            intensity = Math.min(Math.max(intensity, 0), 255);
+
+            const idx = i * 4;
+            imgData.data[idx]     = intensity; // R
+            imgData.data[idx + 1] = intensity; // G
+            imgData.data[idx + 2] = intensity; // B
+            imgData.data[idx + 3] = 255;       // Alpha
         }
+        
         fCtx.putImageData(imgData, 0, 0);
     }
 
+    // 샘플 데이터 생성 기능에도 동일 로그 스케일 검증 적용
     function generateSample() {
-        const w=300, h=300;
+        const w = 300, h = 300;
         const pix = new Float32Array(w*h);
         for(let i=0; i<w*h; i++) {
             const dx = (i%w) - 150, dy = Math.floor(i/w) - 150;
-            pix[i] = Math.exp(-(dx*dx + dy*dy)/1000) * 1000 + Math.random()*100;
+            // 일부러 가치를 높인 하이 다이내믹 레인지 데이터 시뮬레이션 (최대 5000 ADU)
+            pix[i] = Math.exp(-(dx*dx + dy*dy)/600) * 5000 + Math.random()*200;
         }
         document.getElementById('metaSize').innerText = "300 x 300";
         document.getElementById('metaExp').innerText = "30.0 s";
-        renderFits(pix, w, h);
+        
+        renderFitsLogarithmic(pix, w, h);
+        uploadStatus.innerText = "가상 샘플 로드 완료";
+        placeholder.style.display = "none";
+        fCanvas.style.display = "block";
     }
 </script>
 
@@ -357,7 +402,4 @@ html_content = """
 """
 
 # Streamlit 화면에 HTML 컴포넌트를 렌더링합니다.
-# width를 100%로 하고, height는 슬라이드 높이에 맞춰 조절합니다.
 components.html(html_content, height=800, scrolling=True)
-
-
