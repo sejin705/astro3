@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>천문학 및 지구과학 II 통합 시뮬레이터</title>
+    <!-- Tailwind CSS for UI design -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- fitsjs Library for FITS file parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/fitsjs@0.0.5/dist/fits.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur px-6 py-4 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-xl font-bold text-sky-400">CosmoSim Pro</h1>
+                <p class="text-xs text-slate-400">지구과학 II 내행성 위상 시뮬레이션 & FITS 데이터 분석기</p>
+            </div>
+            <span class="px-3 py-1 bg-sky-500/10 text-sky-400 text-xs rounded-full border border-sky-500/20 font-mono">v1.0.0</span>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+
+        <!-- SECTION 1: 내행성의 겉보기 운동 시뮬레이터 -->
+        <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-xl">
+            <div class="border-b border-slate-800 pb-4 mb-6">
+                <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                    🪐 1. 내행성의 겉보기 운동 (위치와 위상)
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">지구에서 관측한 내행성의 상대적 위치(이각)에 따른 위상(모양)과 크기 변화를 관찰하세요.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Simulation Canvas (Orbit) -->
+                <div class="lg:col-span-2 flex flex-col items-center bg-slate-950 rounded-lg p-4 border border-slate-800 relative">
+                    <span class="absolute top-3 left-3 text-xs font-mono text-slate-500">ORBIT VIEW (북극 상공에서 본 모습)</span>
+                    <canvas id="orbitCanvas" width="500" height="400" class="w-full max-w-[500px] h-auto aspect-[5/4]"></canvas>
+                </div>
+
+                <!-- Phase View & Controls -->
+                <div class="space-y-6 flex flex-col justify-between">
+                    <!-- Phase Telephoto Display -->
+                    <div class="bg-slate-950 rounded-lg p-4 border border-slate-800 text-center flex flex-col items-center justify-center min-h-[200px] relative">
+                        <span class="absolute top-3 left-3 text-xs font-mono text-slate-500">TELESCOPE VIEW (망원경 관측 모습)</span>
+                        <canvas id="phaseCanvas" width="150" height="150" class="mb-2"></canvas>
+                        <div id="positionLabel" class="text-sm font-bold text-sky-400 mt-2">-</div>
+                        <div id="infoLabel" class="text-xs text-slate-400 mt-1">이각: 0° | 시직경: 100%</div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-800 space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-2 flex justify-between">
+                                <span>내행성 위치 조절 (공전 각도)</span>
+                                <span id="angleValue" class="text-sky-400 font-mono">0°</span>
+                            </label>
+                            <input type="range" id="angleSlider" min="0" max="360" value="45" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500">
+                        </div>
+                        <div class="pt-2 border-t border-slate-800/60 grid grid-cols-2 gap-2 text-center text-xs text-slate-400">
+                            <div class="p-2 bg-slate-950 rounded border border-slate-800/40">외합 부근: 크기 작음, 망(보름달)</div>
+                            <div class="p-2 bg-slate-950 rounded border border-slate-800/40">내합 부근: 크기 큼, 삭(초승달/그믐달)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: FITS 파일 업로드 및 천문 데이터 분석 -->
+        <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 shadow-xl">
+            <div class="border-b border-slate-800 pb-4 mb-6">
+                <h2 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                    📷 2. FITS 천문 이미지 분석기
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">실제 관측 FITS 파일을 드롭하거나 선택하여 가시화하고 메타데이터를 추출합니다.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Upload & Metadata -->
+                <div class="space-y-4">
+                    <div id="dropZone" class="border-2 border-dashed border-slate-700 hover:border-sky-500 bg-slate-950/50 rounded-lg p-6 text-center cursor-pointer transition-colors group">
+                        <input type="file" id="fitsFile" accept=".fits,.fit" class="hidden">
+                        <div class="text-3xl mb-2 group-hover:scale-110 transition-transform">🌌</div>
+                        <p class="text-sm font-medium text-slate-300">FITS 파일을 드래그하거나 클릭하여 선택</p>
+                        <p class="text-xs text-slate-500 mt-1">*.fits, *.fit 지원</p>
+                    </div>
+
+                    <button id="sampleBtn" class="w-full py-2 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium rounded-lg transition-colors">
+                        ⚙️ 테스트용 샘플 데이터 생성하기
+                    </button>
+
+                    <!-- FITS Header Information Table -->
+                    <div class="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">FITS 핵심 헤더 정보</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <tbody class="divide-y divide-slate-800 font-mono">
+                                    <tr>
+                                        <td class="py-2 text-slate-500">IMAGE SIZE (Width)</td>
+                                        <td id="metaWidth" class="py-2 text-slate-300 text-right">- px</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2 text-slate-500">IMAGE SIZE (Height)</td>
+                                        <td id="metaHeight" class="py-2 text-slate-300 text-right">- px</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2 text-slate-500">EXPOSURE TIME</td>
+                                        <td id="metaExptime" class="py-2 text-amber-400 text-right">- sec</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2 text-slate-500">AVG BRIGHTNESS</td>
+                                        <td id="metaBrightness" class="py-2 text-emerald-400 text-right">- ADU</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FITS Image Visualization Screen -->
+                <div class="lg:col-span-2 bg-slate-950 rounded-lg p-4 border border-slate-800 flex flex-col items-center justify-center min-h-[300px] relative overflow-hidden">
+                    <span class="absolute top-3 left-3 text-xs font-mono text-slate-500">IMAGE VISUALIZATION (CCD RAW)</span>
+                    <div id="noImageText" class="text-slate-600 text-sm">분석된 파일이 없습니다.</div>
+                    <canvas id="fitsCanvas" class="max-w-full max-h-[500px] hidden rounded shadow-2xl bg-black"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="max-w-7xl mx-auto px-6 py-8 border-t border-slate-900 text-center text-xs text-slate-600">
+        <p>© 2026 CosmoSim Pro. Designed for Astronomy & Earth Science II Learning.</p>
+    </footer>
+
+    <!-- Script Logic -->
+    <script>
+        // ==========================================
+        // MODULE 1: 내행성 시뮬레이터 로직
+        // ==========================================
+        const orbitCanvas = document.getElementById('orbitCanvas');
+        const orbitCtx = orbitCanvas.getContext('2d');
+        const phaseCanvas = document.getElementById('phaseCanvas');
+        const phaseCtx = phaseCanvas.getContext('2d');
+        const angleSlider = document.getElementById('angleSlider');
+        const angleValue = document.getElementById('angleValue');
+        const positionLabel = document.getElementById('positionLabel');
+        const infoLabel = document.getElementById('infoLabel');
+
+        let planetAngle = 45; // 초기 행성 각도 (도)
+
+        function drawOrbitSimulation() {
+            const cx = orbitCanvas.width / 2;
+            const cy = orbitCanvas.height / 2;
+            orbitCtx.clearRect(0, 0, orbitCanvas.width, orbitCanvas.height);
+
+            // 1. 배경 가이드 라인 및 태양 그리기
+            orbitCtx.strokeStyle = '#1e293b';
+            orbitCtx.lineWidth = 1;
+            
+            // 내행성 궤도 (금성 기준 r=90)
+            const rPlanet = 85;
+            orbitCtx.beginPath();
+            orbitCtx.arc(cx, cy, rPlanet, 0, Math.PI * 2);
+            orbitCtx.stroke();
+
+            // 지구 궤도 (r=150)
+            const rEarth = 145;
+            orbitCtx.beginPath();
+            orbitCtx.arc(cx, cy, rEarth, 0, Math.PI * 2);
+            orbitCtx.stroke();
+
+            // 태양 (중심)
+            orbitCtx.shadowBlur = 20;
+            orbitCtx.shadowColor = '#f59e0b';
+            orbitCtx.fillStyle = '#f59e0b';
+            orbitCtx.beginPath();
+            orbitCtx.arc(cx, cy, 18, 0, Math.PI * 2);
+            orbitCtx.fill();
+            orbitCtx.shadowBlur = 0; // shadow reset
+
+            // 2. 지구 그리기 (6시 방향 고정하여 시뮬레이션 단순화)
+            const ex = cx;
+            const ey = cy + rEarth;
+            orbitCtx.fillStyle = '#3b82f6';
+            orbitCtx.beginPath();
+            orbitCtx.arc(ex, ey, 10, 0, Math.PI * 2);
+            orbitCtx.fill();
+            // 지구 햇빛 반대편 그림자 표현
+            orbitCtx.fillStyle = 'rgba(0,0,0,0.6)';
+            orbitCtx.beginPath();
+            orbitCtx.arc(ex, ey, 10, Math.PI, 0);
+            orbitCtx.fill();
+
+            // 3. 내행성 위치 계산 (시계 반대 방향 공전)
+            const rad = (planetAngle - 90) * Math.PI / 180; 
+            const px = cx + rPlanet * Math.cos(rad);
+            const py = cy + rPlanet * Math.sin(rad);
+
+            // 지구-태양 기준선 및 시선 방향 유도선
+            orbitCtx.setLineDash([4, 4]);
+            orbitCtx.strokeStyle = '#475569';
+            // 지구 - 태양
+            orbitCtx.beginPath(); orbitCtx.moveTo(ex, ey); orbitCtx.lineTo(cx, cy); orbitCtx.stroke();
+            // 지구 - 내행성
+            orbitCtx.strokeStyle = '#0ea5e9';
+            orbitCtx.beginPath(); orbitCtx.moveTo(ex, ey); orbitCtx.lineTo(px, py); orbitCtx.stroke();
+            orbitCtx.setLineDash([]);
+
+            // 내행성 본체 그리기
+            orbitCtx.fillStyle = '#e2e8f0';
+            orbitCtx.beginPath();
+            orbitCtx.arc(px, py, 7, 0, Math.PI * 2);
+            orbitCtx.fill();
+            // 내행성 밤 부분 반원 채우기 (항상 태양 반대쪽이 어두움)
+            orbitCtx.fillStyle = 'rgba(0,0,0,0.75)';
+            orbitCtx.beginPath();
+            orbitCtx.arc(px, py, 7, 0, Math.PI); // 화면 기준 위쪽이 태양 방향이 되므로 아래쪽을 어둡게 설정
+            // 각도에 맞게 그림자 회전 각 정밀화 가능하나 직관적 표현을 위해 단순화
+            orbitCtx.fill();
+
+            // 텍스트 라벨링
+            orbitCtx.fillStyle = '#94a3b8';
+            orbitCtx.font = '11px sans-serif';
+            orbitCtx.fillText('태양', cx - 10, cy - 24);
+            orbitCtx.fillText('지구', ex - 10, ey + 24);
+
+            // 이각 및 위상 상태 판정 계산
+            updatePhaseView(px - ex, py - ey, rPlanet, rEarth);
+        }
+
+        function updatePhaseView(dx, dy, rPlanet, rEarth) {
+            // 지구 기준에서 태양 벡터와 행성 벡터 사이의 사잇각 계산 (이각)
+            // 지구(0, rEarth), 태양(0,0) -> 지구->태양 벡터는 (0, -rEarth)
+            const vSun = { x: 0, y: -rEarth };
+            const vPlanet = { x: dx, y: dy };
+            
+            const dot = vSun.x * vPlanet.x + vSun.y * vPlanet.y;
+            const magSun = Math.sqrt(vSun.x**2 + vSun.y**2);
+            const magPlanet = Math.sqrt(vPlanet.x**2 + vPlanet.y**2);
+            
+            let elongation = Math.acos(dot / (magSun * magPlanet)) * 100 / Math.PI; // 이각(도)
+            elongation = Math.round(elongation);
+
+            // 거리에 따른 시직경 계수 (가까울수록 커짐)
+            const dist = magPlanet;
+            const maxDist = rEarth + rPlanet;
+            const minDist = rEarth - rPlanet;
+            const sizeFactor = maxDist / dist; // 상대적 크기 배율
+
+            // 위상면 구하기 (Phase Angle: 태양-행성-지구 사잇각)
+            // 태양(0,0), 행성(px, py), 지구(0, rEarth)
+            const angleRad = (planetAngle) * Math.PI / 180;
+            
+            // 간단하게 공전 각도(planetAngle)에 기반하여 위상과 위치 명칭 매핑
+            let posName = "";
+            let phaseRatio = 0; // 0 (삭) ~ 1 (망)
+
+            // 각도 범위별 지구과학 II 기준 위치 명칭 매칭
+            const normAngle = (planetAngle % 360 + 360) % 360;
+            if (normAngle >= 350 || normAngle <= 10) {
+                posName = "내합 (Inferior Conjunction)";
+                phaseRatio = 0;
+            } else if (normAngle > 10 && normAngle < 80) {
+                posName = "새벽 / 동방이각 부근 (그믐달 모양)";
+                phaseRatio = 0.25;
+            } else if (normAngle >= 80 && normAngle <= 100) {
+                posName = "동방최대이각 (Greatest Eastern Elongation)";
+                phaseRatio = 0.5;
+            } else if (normAngle > 100 && normAngle < 170) {
+                posName = "초저녁 / 동방이각 부근 (상현달 모양)";
+                phaseRatio = 0.75;
+            } else if (normAngle >= 170 && normAngle <= 190) {
+                posName = "외합 (Superior Conjunction)";
+                phaseRatio = 1;
+            } else if (normAngle > 190 && normAngle < 260) {
+                posName = "새벽 / 서방이각 부근 (하현달 모양)";
+                phaseRatio = 0.75;
+            } else if (normAngle >= 260 && normAngle <= 280) {
+                posName = "서방최대이각 (Greatest Western Elongation)";
+                phaseRatio = 0.5;
+            } else {
+                posName = "새벽 / 서방이각 부근 (초승달 모양)";
+                phaseRatio = 0.25;
+            }
+
+            // 부드러운 위상 수학적 보정 (내합 0, 외합 180도 기준)
+            const smoothPhase = (1 - Math.cos(normAngle * Math.PI / 180)) / 2;
+
+            // UI 텍스트 업데이트
+            positionLabel.innerText = posName;
+            infoLabel.innerText = `지구와의 거리 비율: ${sizeFactor.toFixed(1)}x | 위상도: ${Math.round(smoothPhase * 100)}%`;
+
+            // 망원경 뷰 가시화 그리기
+            const cx = phaseCanvas.width / 2;
+            const cy = phaseCanvas.height / 2;
+            const baseRadius = 25; 
+            const dynamicRadius = baseRadius * sizeFactor; // 시직경 반영 크기
+
+            phaseCtx.clearRect(0, 0, phaseCanvas.width, phaseCanvas.height);
+            
+            // 검은 우주 배경 공간
+            phaseCtx.fillStyle = '#020617';
+            phaseCtx.fillRect(0, 0, phaseCanvas.width, phaseCanvas.height);
+
+            // 가이드라인 그리드 원
+            phaseCtx.strokeStyle = '#1e293b';
+            phaseCtx.beginPath(); phaseCtx.arc(cx, cy, baseRadius * (maxDist/minDist), 0, Math.PI*2); phaseCtx.stroke();
+
+            // 행성 위상 그리기 (Canvas 격자 변형을 이용한 위상 구체 마스킹 효과 대체형식 단순화 구현)
+            phaseCtx.save();
+            
+            // 기본 행성 몸체 진한 음영 영역
+            phaseCtx.fillStyle = '#1e293b';
+            phaseCtx.beginPath();
+            phaseCtx.arc(cx, cy, dynamicRadius, 0, Math.PI * 2);
+            phaseCtx.fill();
+
+            // 밝은 면 그리기 (오른쪽/왼쪽 햇빛 반사 방향 제어)
+            phaseCtx.fillStyle = '#f8fafc';
+            // 동방/서방 영역에 따른 위상 아크 렌더링
+            phaseCtx.beginPath();
+            if (normAngle < 180) {
+                // 동방이각 측면 (지구에서 볼 때 우측이 밝음)
+                phaseCtx.arc(cx, cy, dynamicRadius, -Math.PI/2, Math.PI/2, false);
+            } else {
+                // 서방이각 측면 (지구에서 볼 때 좌측이 밝음)
+                phaseCtx.arc(cx, cy, dynamicRadius, Math.PI/2, -Math.PI/2, false);
+            }
+            
+            // 중앙부 형태 굴곡 조절을 위한 타원 채우기 구조
+            const midWidth = dynamicRadius * Math.cos(normAngle * Math.PI / 180);
+            phaseCtx.lineTo(cx, cy + dynamicRadius);
+            // 베지에 곡선 혹은 타원으로 달 모양의 볼록/오목 변환 제어
+            phaseCtx.ellipse(cx, cy, Math.abs(midWidth), dynamicRadius, 0, Math.PI/2, -Math.PI/2, (normAngle > 90 && normAngle < 270));
+            phaseCtx.closePath();
+            phaseCtx.fill();
+            phaseCtx.restore();
+        }
+
+        // Slider Event Listener
+        angleSlider.addEventListener('input', (e) => {
+            planetAngle = parseInt(e.target.value);
+            angleValue.innerText = `${planetAngle}°`;
+            drawOrbitSimulation();
+        });
+
+
+        // ==========================================
+        // MODULE 2: FITS 파일 프로세서 로직
+        // ==========================================
+        const fileInput = document.getElementById('fitsFile');
+        const dropZone = document.getElementById('dropZone');
+        const sampleBtn = document.getElementById('sampleBtn');
+        const fitsCanvas = document.getElementById('fitsCanvas');
+        const fitsCtx = fitsCanvas.getContext('2d');
+        const noImageText = document.getElementById('noImageText');
+
+        // Drag and Drop Events
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-sky-500'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-sky-500'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-sky-500');
+            if (e.dataTransfer.files.length > 0) {
+                processFitsFile(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) processFitsFile(e.target.files[0]);
+        });
+
+        // 실제 FITS 파일 파싱 및 처리 함수
+        function processFitsFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const arrayBuffer = e.target.result;
+                    // fitsjs 객체를 이용한 바이너리 해독
+                    const fitsParser = new astro.FITS(arrayBuffer);
+                    const header = fitsParser.getHDU().header;
+                    
+                    // 헤더 정보 검출 및 UI 세팅
+                    const width = header.get('NAXIS1') || 512;
+                    const height = header.get('NAXIS2') || 512;
+                    const exptime = header.get('EXPTIME') || 10.0;
+                    
+                    // 이미지 데이터 유닛 로드
+                    const dataUnit = fitsParser.getHDU().data;
+                    dataUnit.getFrame(0, (pixels) => {
+                        renderAstronomicalData(pixels, width, height, exptime);
+                    });
+                } catch (err) {
+                    alert('FITS 파일을 분석하는 도중 오류가 발생했습니다. 규격 또는 헤더 형식을 확인하세요.');
+                    console.error(err);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 가상 샘플 우주 데이터 생성기 (FITS 파일이 없을 경우 테스트용)
+        sampleBtn.addEventListener('click', () => {
+            const mockWidth = 400;
+            const mockHeight = 400;
+            const totalPixels = mockWidth * mockHeight;
+            const mockPixels = new Float32Array(totalPixels);
+
+            // 가상의 배경 노이즈 + 중심 성운/성단 광원 데이터 수식 생성
+            for (let i = 0; i < totalPixels; i++) {
+                const x = i % mockWidth;
+                const y = Math.floor(i / mockWidth);
+                
+                // 기본 백그라운드 우주 복사 노이즈
+                const noise = Math.random() * 30;
+                
+                // 중심부 천체 광원 가우시안 분포 함수 모델링
+                const dx = x - (mockWidth / 2);
+                const dy = y - (mockHeight / 2);
+                const distSq = dx*dx + dy*dy;
+                const starGlow = 255 * Math.exp(-distSq / 1200);
+                
+                // 주변 배경에 잔잔한 은하수 효과 추가
+                const nebulaGlow = 45 * Math.exp(-distSq / 20000);
+
+                mockPixels[i] = noise + starGlow + nebulaGlow;
+            }
+
+            renderAstronomicalData(mockPixels, mockWidth, mockHeight, 30.0);
+        });
+
+        // CCD 픽셀 행렬 데이터를 캔버스에 그리는 공통 가시화 엔진
+        function renderAstronomicalData(pixels, w, h, exptime) {
+            noImageText.classList.add('hidden');
+            fitsCanvas.classList.remove('hidden');
+            fitsCanvas.width = w;
+            fitsCanvas.height = h;
+
+            const imgData = fitsCtx.createImageData(w, h);
+            
+            // 배열 데이터 통계 산출 (최대값, 최소값, 평균 계산)
+            let max = -Infinity, min = Infinity, sum = 0;
+            for(let i=0; i<pixels.length; i++) {
+                const val = pixels[i];
+                if(val > max) max = val;
+                if(val < min) min = val;
+                sum += val;
+            }
+            const avg = sum / pixels.length;
+
+            // 천문 이미지 Stretch 스케일링 기술 적용 (Linear 대비 최적화 가시화)
+            const range = max - min || 1;
+
+            for (let i = 0; i < pixels.length; i++) {
+                // 0 ~ 255 범위로 노멀라이즈 변환
+                let normalized = ((pixels[i] - min) / range) * 255;
+                
+                // 인덱스 맵핑 (RGBA)
+                const idx = i * 4;
+                imgData.data[idx] = normalized;     // R
+                imgData.data[idx + 1] = normalized; // G
+                imgData.data[idx + 2] = normalized; // B
+                imgData.data[idx + 3] = 255;        // Alpha (불투명)
+            }
+
+            fitsCtx.putImageData(imgData, 0, 0);
+
+            // 테이블 메타데이터 정보 반영
+            document.getElementById('metaWidth').innerText = `${w} px`;
+            document.getElementById('metaHeight').innerText = `${h} px`;
+            document.getElementById('metaExptime').innerText = `${exptime.toFixed(2)} 초`;
+            document.getElementById('metaBrightness').innerText = `${Math.round(avg)} ADU`;
+        }
+
+        // 초기화 실행
+        window.onload = () => {
+            drawOrbitSimulation();
+        };
+    </script>
+</body>
+</html>
