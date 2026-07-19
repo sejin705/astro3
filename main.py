@@ -196,6 +196,7 @@ html_content = """
         oCtx.fillStyle = '#3b82f6';
         oCtx.beginPath(); oCtx.arc(ex, ey, 9, 0, Math.PI*2); oCtx.fill();
         
+        // 시계 방향 공전 처리 (0도가 내합, 90도가 동방최대이각, 180도가 외합, 270도가 서방최대이각)
         const rad = (angle + 90) * Math.PI / 180;
         const px = cx + 90 * Math.cos(rad);
         const py = cy + 90 * Math.sin(rad);
@@ -217,49 +218,78 @@ html_content = """
         const dist = Math.sqrt((ex-px)**2 + (ey-py)**2);
         
         const maxDist = 150 + 90;
-        const scale = (maxDist / dist) * 0.9;
+        const scale = (maxDist / dist) * 0.95; // 시직경 스케일 최적화
 
         updatePhaseView(normAngle, scale);
     }
 
+    // 물리적 구면 투영 알고리즘 기반 완벽한 위상 구현 함수
     function updatePhaseView(angle, scale) {
         const cx = 130, cy = 130;
         const baseRadius = 45; 
         const r = baseRadius * scale;
         
         pCtx.clearRect(0,0,260,260);
+        
+        // 1. 밤하늘 배경
         pCtx.fillStyle = '#020617';
         pCtx.fillRect(0,0,260,260);
         
+        // 2. 행성의 보이지 않는 어두운 부분 (음영 바탕)
         pCtx.fillStyle = '#1e293b';
         pCtx.beginPath(); pCtx.arc(cx, cy, r, 0, Math.PI*2); pCtx.fill();
         
+        // 3. 지구에서 바라보는 햇빛 반사면 계산 및 드로잉
         pCtx.fillStyle = '#f8fafc';
-        pCtx.save();
-        pCtx.beginPath();
         
-        if(angle > 0 && angle < 180) {
-            pCtx.arc(cx, cy, r, -Math.PI/2, Math.PI/2, false);
+        // 행성의 위상 경계선 계수 (cos(이각각도))
+        // midW가 양수이면 볼록한 모양(Gibbous), 음수이면 눈썹 모양(Crescent)을 형성함
+        const midW = r * Math.cos(angle * Math.PI / 180);
+        
+        if (angle === 0 || angle === 360) {
+            // 내합: 완전히 어두움 (삭)
+            // 아무것도 안 그림 (기본 배경 유지)
+        } else if (angle === 180) {
+            // 외합: 전체가 밝음 (망)
+            pCtx.beginPath(); pCtx.arc(cx, cy, r, 0, Math.PI*2); pCtx.fill();
+        } else if (angle > 0 && angle < 180) {
+            // [동방이각 구역 - 우측면이 기본적으로 밝음]
+            pCtx.beginPath();
+            pCtx.arc(cx, cy, r, -Math.PI/2, Math.PI/2, false); // 기본 오른쪽 반원
+            
+            if (angle <= 90) {
+                // 0~90도 (그믐달 -> 상현달 구조): 안쪽으로 파고드는 어두운 타원 차감 효과
+                pCtx.ellipse(cx, cy, Math.abs(midW), r, 0, Math.PI/2, -Math.PI/2, true);
+            } else {
+                // 90~180도 (상현달 -> 보름달 구조): 왼쪽으로 볼록하게 확장되는 타원 추가 효과
+                pCtx.ellipse(cx, cy, Math.abs(midW), r, 0, Math.PI/2, -Math.PI/2, false);
+            }
+            pCtx.fill();
         } else if (angle > 180 && angle < 360) {
-            pCtx.arc(cx, cy, r, Math.PI/2, -Math.PI/2, false);
-        } else if (angle === 180 || angle === 0) {
-            if (angle === 180) pCtx.arc(cx, cy, r, 0, Math.PI*2);
+            // [서방이각 구역 - 좌측면이 기본적으로 밝음] - 기존 버그 완전 해결 부분
+            pCtx.beginPath();
+            pCtx.arc(cx, cy, r, Math.PI/2, -Math.PI/2, false); // 기본 왼쪽 반원
+            
+            if (angle < 270) {
+                // 180~270도 (보름달 -> 하현달 구조): 오른쪽으로 볼록하게 확장되는 타원 추가 효과
+                pCtx.ellipse(cx, cy, Math.abs(midW), r, 0, -Math.PI/2, Math.PI/2, false);
+            } else {
+                // 270~360도 (하현달 -> 초승달 구조): 안쪽으로 파고드는 어두운 타원 차감 효과
+                pCtx.ellipse(cx, cy, Math.abs(midW), r, 0, -Math.PI/2, Math.PI/2, true);
+            }
+            pCtx.fill();
         }
         
-        const midWidth = r * Math.cos(angle * Math.PI / 180);
-        pCtx.ellipse(cx, cy, Math.abs(midWidth), r, 0, Math.PI/2, -Math.PI/2, (angle > 90 && angle < 270));
-        pCtx.fill();
-        pCtx.restore();
-        
+        // 지구과학 II 기준 상태 메시지 매칭
         let statusText = "";
         if (angle === 0 || angle === 360) statusText = "내합 (삭, 관측 불가)";
-        else if (angle > 0 && angle < 90) statusText = "동방이각 초입 (그믐달 모양, 저녁)";
-        else if (angle === 90) statusText = "동방최대이각 (상현달 모양, 저녁)";
-        else if (angle > 90 && angle < 180) statusText = "동방이각 말기 (볼록한 달, 저녁)";
+        else if (angle > 0 && angle < 90) statusText = "동방이각 (그믐/눈썹 모양, 저녁 하늘)";
+        else if (angle === 90) statusText = "동방최대이각 (상현달 모양, 저녁 하늘)";
+        else if (angle > 90 && angle < 180) statusText = "동방이각 (볼록한 달 모양, 저녁 하늘)";
         else if (angle === 180) statusText = "외합 (망/보름달, 관측 불가)";
-        else if (angle > 180 && angle < 270) statusText = "서방이각 초입 (볼록한 달, 새벽)";
-        else if (angle === 270) statusText = "서방최대이각 (하현달 모양, 새벽)";
-        else if (angle > 270 && angle < 360) statusText = "서방이각 말기 (초승달 모양, 새벽)";
+        else if (angle > 180 && angle < 270) statusText = "서방이각 (볼록한 달 모양, 새벽 하늘)";
+        else if (angle === 270) statusText = "서방최대이각 (하현달 모양, 새벽 하늘)";
+        else if (angle > 270 && angle < 360) statusText = "서방이각 (초승/눈썹 모양, 새벽 하늘)";
 
         document.getElementById('statusLabel').innerText = statusText;
         document.getElementById('distInfo').innerText = "시직경 상대 배율: " + scale.toFixed(2) + "x";
@@ -269,7 +299,7 @@ html_content = """
     drawSim();
 
 
-    /* FITS ANALYZER LOGIC (개선된 파일 처리 시스템) */
+    /* FITS ANALYZER LOGIC */
     const fitsInput = document.getElementById('fitsInput');
     const fCanvas = document.getElementById('fitsCanvas');
     const fCtx = fCanvas.getContext('2d');
@@ -289,9 +319,7 @@ html_content = """
                 const fits = new astro.FITS(this.result);
                 const hdu = fits.getHDU();
                 
-                if(!hdu) {
-                    throw new Error("유효한 HDU 구조를 찾을 수 없습니다.");
-                }
+                if(!hdu) throw new Error("유효한 HDU 구조를 찾을 수 없습니다.");
 
                 const header = hdu.header;
                 const dataUnit = hdu.data;
@@ -300,9 +328,7 @@ html_content = """
                 const h = header.get('NAXIS2');
                 const exptime = header.get('EXPTIME') || 0;
                 
-                if(!w || !h) {
-                    throw new Error("이미지 차원(NAXIS) 정보가 누락되었습니다.");
-                }
+                if(!w || !h) throw new Error("이미지 차원 정보가 누락되었습니다.");
 
                 document.getElementById('metaSize').innerText = w + " x " + h;
                 document.getElementById('metaExp').innerText = exptime.toFixed(1) + " s";
@@ -322,27 +348,17 @@ html_content = """
 
             } catch (err) {
                 uploadStatus.innerText = "오류 발생";
-                alert("FITS 해석 실패: " + err.message + "\\n압축되지 않은 표준 FITS 파일인지 확인하세요.");
+                alert("FITS 해석 실패: " + err.message);
                 console.error(err);
             }
         };
-        
-        reader.onerror = function() {
-            uploadStatus.innerText = "파일 읽기 실패";
-        };
-        
         reader.readAsArrayBuffer(file);
     };
 
-    // 로그 가속(Logarithmic Stretch) 연산을 사용한 정밀 천체 렌더링 엔진
     function renderFitsLogarithmic(pixels, w, h) {
-        fCanvas.width = w; 
-        fCanvas.height = h;
+        fCanvas.width = w; fCanvas.height = h;
         const imgData = fCtx.createImageData(w, h);
-        
-        let min = Infinity;
-        let max = -Infinity;
-        let sum = 0;
+        let min = Infinity, max = -Infinity, sum = 0;
         
         for(let i=0; i<pixels.length; i++) {
             const p = pixels[i];
@@ -350,46 +366,36 @@ html_content = """
             if (p > max) max = p;
             sum += p;
         }
-        
         document.getElementById('metaBright').innerText = Math.round(sum/pixels.length) + " ADU";
 
-        // 데이터 편차가 큰 천문 이미지를 선명하게 보여주는 Log 변환
-        // 공식: Pixel_Out = ln(Pixel_In - min + 1) / ln(max - min + 1) * 255
         const logMax = Math.log(max - min + 1);
 
         for(let i=0; i<pixels.length; i++) {
             const rawValue = pixels[i];
             let intensity = 0;
-            
             if (max - min > 0) {
                 intensity = Math.log(rawValue - min + 1) / logMax * 255;
             }
-            
-            // 0 ~ 255 사이 제한 방어코드
             intensity = Math.min(Math.max(intensity, 0), 255);
 
             const idx = i * 4;
-            imgData.data[idx]     = intensity; // R
-            imgData.data[idx + 1] = intensity; // G
-            imgData.data[idx + 2] = intensity; // B
-            imgData.data[idx + 3] = 255;       // Alpha
+            imgData.data[idx]     = intensity;
+            imgData.data[idx + 1] = intensity;
+            imgData.data[idx + 2] = intensity;
+            imgData.data[idx + 3] = 255;
         }
-        
         fCtx.putImageData(imgData, 0, 0);
     }
 
-    // 샘플 데이터 생성 기능에도 동일 로그 스케일 검증 적용
     function generateSample() {
         const w = 300, h = 300;
         const pix = new Float32Array(w*h);
         for(let i=0; i<w*h; i++) {
             const dx = (i%w) - 150, dy = Math.floor(i/w) - 150;
-            // 일부러 가치를 높인 하이 다이내믹 레인지 데이터 시뮬레이션 (최대 5000 ADU)
             pix[i] = Math.exp(-(dx*dx + dy*dy)/600) * 5000 + Math.random()*200;
         }
         document.getElementById('metaSize').innerText = "300 x 300";
         document.getElementById('metaExp').innerText = "30.0 s";
-        
         renderFitsLogarithmic(pix, w, h);
         uploadStatus.innerText = "가상 샘플 로드 완료";
         placeholder.style.display = "none";
